@@ -16,21 +16,22 @@ func TestAPIClient(t *testing.T) {
   setup_api_client_server()
 
   /* Notice the intentional trailing / */
-  client := NewAPIClient ("http://127.0.0.1:8080/", false, "", "", make(map[string]string, 0), 2, "id", make([]string, 0), false, false, debug)
+  client := NewAPIClient ("http://127.0.0.1:8080/", false, "", "", make(map[string]string, 0), 2, "id", "", false, make([]string, 0), false, false, debug)
 
-  var res string
+  var res_headers map[string]string
+  var res_body string
   var err error
 
   log.Printf("api_client_test.go: Testing standard OK request\n")
-  res, err = client.send_request("GET", "/ok", "")
+  res_headers, res_body, err = client.send_request("GET", "/ok", "")
   if err != nil { t.Fatalf("client_test.go: %s", err) }
-  if res != "It works!" {
-    t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res)
+  if res_body != "It works!" {
+    t.Fatalf("client_test.go: Got back '%s' but expected 'It works!'\n", res_body)
   }
 
   /* Verify timeout works */
   log.Printf("api_client_test.go: Testing timeout aborts requests\n")
-  res, err = client.send_request("GET", "/slow", "")
+  res_headers, res_body, err = client.send_request("GET", "/slow", "")
   if err == nil { t.Fatalf("client_test.go: Timeout did not trigger on slow request") }
 
   if debug { log.Println("client_test.go: Stopping HTTP server") }

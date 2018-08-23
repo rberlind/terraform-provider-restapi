@@ -25,6 +25,8 @@ Have a look at the [examples directory](examples) for some use cases
 - `headers` (hash of strings, optional): A map of header names and values to set on all outbound requests. This is useful if you want to use a script via the 'external' provider or provide a pre-approved token or change Content-Type from `application/json`. If `username` and `password` are set and Authorization is one of the headers defined here, the BASIC auth credentials take precedence.
 - `timeout` (integer, optional): When set, will cause requests taking longer than this time (in seconds) to be aborted. Default is `0` which means no timeout is set.
 - `id_attribute` (string, optional): When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to `http://foo.com/bar/VALUE_OF_NAME`.
+- `id_header` (string, optional): When set, this key will indicate the response header from the POST request that contains the ID of REST objects. Be sure to set `create_returns_object` to true when using this. Do not use this with a REST API endpoint that expects an ID to be provided when creating an object unless you can provide a valid ID using the `id_attribute` or `object_id` keys; but if you can use those, it seems unlikely that you would need to extract the ID from a response header of the POST request used to create the object.
+- `id_header_is_url` (boolean, optional): When set, this key will indicate that the response header specified by the `id_header` key is a URL and that the ID is the last segment of the URL.
 - `copy_keys` (array of strings, optional): When set, any `PUT` to the API for an object will copy these keys from the data the provider has gathered about the object. This is useful if internal API information must also be provided with updates, such as the revision of the object.
 - `write_returns_object` (boolean, optional): Set this when the API returns the object created on all write operations (`POST`, `PUT`). This is used by the provider to refresh internal data structures.
 - `create_returns_object` (boolean, optional): Set this when the API returns the object created only on creation operations (`POST`). This is used by the provider to refresh internal data structures.
@@ -40,13 +42,13 @@ Have a look at the [examples directory](examples) for some use cases
 - `destroy_path` (string, optional): Defaults to `path/{id}`. The API path that represents where to DESTROY (DELETE) objects of this type on the API server. The string `{id}` will be replaced with the terraform ID of the object.
 - `object_id` (string, optional): Allows users to set the object's ID to a specific string.
 - `data` (string, required): Valid JSON data that this provider will manage with the API server. This should represent the whole API object that you want to create. The provider's information.
-- `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting `TF_LOG=1` environment variable.
+- `debug` (boolean, optional): Whether to emit verbose debug output while working with the API object on the server. This can be gathered by setting the `TF_LOG` environment variable to values like 1 or DEBUG.
 
 This provider also exports the following parameters:
 - `id`: The ID of the object that is being managed.
 - `api_data`: After data from the API server is read, this map will include k/v pairs usable in other terraform resources as readable objects. Currently the value is the golang fmt package's representation of the value (simple primitives are set as expected, but complex types like arrays and maps contain golang formatting).
 
-Note that the `*_path` elements are for very specific use cases where one might initially create an object in one location, but read/update/delete it on another path. For this reason, they allow for substitution to be done by the provider internally by injecting the `id` somewhere along the path. This is similar to terraform's substitution syntax in the form of `${variable.name}`, but must be done within the provider due to structure. The only substitution available is to replace the string `{id}` with the internal (terraform) `id` of the object as learned by the `id_attribute`.
+Note that the `*_path` elements are for very specific use cases where one might initially create an object in one location, but read/update/delete it on another path. For this reason, they allow for substitution to be done by the provider internally by injecting the `id` somewhere along the path. This is similar to terraform's substitution syntax in the form of `${variable.name}`, but must be done within the provider due to structure. The only substitution available is to replace the string `{id}` with the internal (terraform) `id` of the object as learned by the `id_attribute`, `id_header`, or `object_id` keys.
 
 &nbsp;
 

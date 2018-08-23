@@ -50,6 +50,18 @@ func Provider() terraform.ResourceProvider {
         DefaultFunc: schema.EnvDefaultFunc("REST_API_ID_ATTRIBUTE", nil),
         Description: "When set, this key will be used to operate on REST objects. For example, if the ID is set to 'name', changes to the API object will be to http://foo.com/bar/VALUE_OF_NAME",
       },
+      "id_header": &schema.Schema{
+        Type: schema.TypeString,
+        Optional: true,
+        DefaultFunc: schema.EnvDefaultFunc("REST_API_ID_HEADER", nil),
+        Description: "When set, this key will indicate the response header from the POST request that contains the ID of REST objects.",
+      },
+      "id_header_is_url": &schema.Schema{
+        Type: schema.TypeBool,
+        Optional: true,
+        DefaultFunc: schema.EnvDefaultFunc("REST_API_ID_HEADER_IS_URL", nil),
+        Description: "When set, this key will indicate that the response header specified by the id_header key is a URL and that the ID is the last segment of the URL.",
+      },
       "copy_keys": &schema.Schema{
         Type: schema.TypeList,
         Elem: &schema.Schema{Type: schema.TypeString},
@@ -115,6 +127,8 @@ func configureProvider(d *schema.ResourceData) (interface{}, error) {
     headers,
     d.Get("timeout").(int),
     d.Get("id_attribute").(string),
+    d.Get("id_header").(string),
+    d.Get("id_header_is_url").(bool),
     copy_keys,
     d.Get("write_returns_object").(bool),
     d.Get("create_returns_object").(bool),

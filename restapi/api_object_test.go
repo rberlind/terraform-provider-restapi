@@ -47,6 +47,8 @@ func TestAPIObject(t *testing.T) {
     make(map[string]string, 0),/* additional headers to send */
     5,                         /* HTTP Timeout in seconds */
     "Id",                      /* Attribute from server that serves as ID */
+    "",                        /* Header with ID */
+    false,                     /* Is header with ID a URL? */
     []string{ "Thing" },       /* keys to copy from api_data to data */
     true,                      /* Write returns object */
     false,                     /* Create returns object */

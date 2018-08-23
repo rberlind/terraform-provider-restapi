@@ -49,7 +49,7 @@ func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, 
   if "" == i_delete_path { return nil, errors.New("No DELETE path passed to api_object constructor") }
   if "" == i_data        { return nil, errors.New("No data passed to api_object constructor") }
 
-  if i_data != ""{
+  if i_data != "" {
     if i_debug { log.Printf("api_object.go: Parsing data: '%s'", i_data) }
 
     err := json.Unmarshal([]byte(i_data), &obj.data)
@@ -97,12 +97,15 @@ func (obj *api_object) update_state(state string) error {
   if obj.debug { log.Printf("api_object.go: Updating API object state to '%s'\n", state) }
 
   /* Other option - Decode as JSON Numbers instead of golang datatypes
-  d := json.NewDecoder(strings.NewReader(res_str))
+  d := json.NewDecoder(strings.NewReader(res_body))
   d.UseNumber()
   err = d.Decode(&obj.api_data)
   */
-  err := json.Unmarshal([]byte(state), &obj.api_data)
-  if err != nil { return err }
+  var err error
+  if state != "" {
+    err = json.Unmarshal([]byte(state), &obj.api_data)
+    if err != nil { return err }
+  }
 
   /* A usable ID was not passed (in constructor or here), 
      so we have to guess what it is from the data structure */
@@ -124,7 +127,7 @@ func (obj *api_object) update_state(state string) error {
   }
 
   /* Any keys that come from the data we want to copy are done here */
-  if len(obj.api_client.copy_keys) > 0 {
+  if len(obj.api_client.copy_keys) > 0  && obj.api_data != nil {
     for _, key := range obj.api_client.copy_keys {
       if obj.debug {
         log.Printf("api_object.go: Copying key '%s' from api_data (%v) to data (%v)\n", key, obj.api_data[key], obj.data[key])
@@ -132,7 +135,7 @@ func (obj *api_object) update_state(state string) error {
       obj.data[key] = obj.api_data[key]
     }
   } else if obj.debug {
-    log.Printf("api_object.go: copy_keys is empty - not attempting to copy data")
+    log.Printf("api_object.go: copy_keys or api_data is empty - not attempting to copy data")
   }
 
   if obj.debug {
@@ -151,8 +154,38 @@ func (obj *api_object) create_object() error {
   }
 
   b, _ := json.Marshal(obj.data)
-  res_str, err := obj.api_client.send_request("POST", strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
+  res_headers, res_body, err := obj.api_client.send_request("POST", strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
   if err != nil { return err }
+
+  // Try to get ID from id_header if it was specified. 
+  var id_header string
+  if obj.api_client.id_header != "" {
+    for name, headers := range res_headers {
+      if name == obj.api_client.id_header {
+        for _, h := range headers {
+          if obj.api_client.id_header_is_url {
+            /* parse ID from last segment of URL */
+            segments := strings.Split(h, "/")
+            if len(segments) > 0 {
+              id_header = segments[len(segments)-1]
+            } else {
+              id_header = ""
+              log.Printf("api_object.go: id_header '%s' was empty or not a URL\n", obj.api_client.id_header)
+            }
+          } else {
+            /* use entire header */
+            id_header = h
+          }
+        }
+      }
+    }
+    if id_header != "" {
+      obj.id = id_header
+      log.Printf("api_object.go: Setting obj.id to '%s'\n", id_header)
+    } else {
+      log.Printf("api_object.go: id_header '%s' was empty or not found\n", obj.api_client.id_header)
+    }
+  }
 
   /* We will need to sync state as well as get the object's ID */
   if obj.api_client.write_returns_object || obj.api_client.create_returns_object {
@@ -160,7 +193,7 @@ func (obj *api_object) create_object() error {
       log.Printf("api_object.go: Parsing response from POST to update internal structures (write_returns_object=%t, create_returns_object=%t)...\n",
         obj.api_client.write_returns_object, obj.api_client.create_returns_object)
     }
-    err = obj.update_state(res_str)
+    err = obj.update_state(res_body)
     /* Yet another failsafe. In case something terrible went wrong internally,
        bail out so the user at least knows that the ID did not get set. */
     if obj.id == "" { return errors.New("Internal validation failed. Object ID is not set, but *may* have been created. This should never happen!") }
@@ -179,10 +212,19 @@ func (obj *api_object) read_object() error {
     return errors.New("Cannot read an object unless the ID has been set.")
   }
 
-  res_str, err := obj.api_client.send_request("GET", strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
+  res_headers, res_body, err := obj.api_client.send_request("GET", strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
   if err != nil { return err }
 
-  err = obj.update_state(res_str)
+  if obj.debug {
+    log.Printf("api_object.go: Response headers:\n")
+    for name, headers := range res_headers {
+      for _, h := range headers {
+       log.Printf("api_client.go:   %v: %v", name, h)
+      }
+    }
+  }
+
+  err = obj.update_state(res_body)
   return err
 }
 
@@ -192,12 +234,21 @@ func (obj *api_object) update_object() error {
   }
 
   b, _ := json.Marshal(obj.data)
-  res_str, err := obj.api_client.send_request("PUT", strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
+  res_headers, res_body, err := obj.api_client.send_request("PUT", strings.Replace(obj.put_path, "{id}", obj.id, -1), string(b))
   if err != nil { return err }
+
+  if obj.debug {
+    log.Printf("api_object.go: Response headers:\n")
+    for name, headers := range res_headers {
+      for _, h := range headers {
+       log.Printf("api_client.go:   %v: %v", name, h)
+      }
+    }
+  }
 
   if obj.api_client.write_returns_object {
     if obj.debug { log.Printf("api_object.go: Parsing response from PUT to update internal structures (write_returns_object=true)...\n") }
-    err = obj.update_state(res_str)
+    err = obj.update_state(res_body)
   } else {
     if obj.debug { log.Printf("api_object.go: Requesting updated object from API (write_returns_object=false)...\n") }
     err = obj.read_object()
@@ -211,7 +262,7 @@ func (obj *api_object) delete_object() error {
     return nil
   }
 
-  _, err := obj.api_client.send_request("DELETE", strings.Replace(obj.delete_path, "{id}", obj.id, -1), "")
+  _, _, err := obj.api_client.send_request("DELETE", strings.Replace(obj.delete_path, "{id}", obj.id, -1), "")
   if err != nil { return err }
 
   return nil

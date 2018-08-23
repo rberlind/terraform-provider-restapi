@@ -22,6 +22,8 @@ type api_client struct {
   redirects             int
   timeout               int
   id_attribute          string
+  id_header		string
+  id_header_is_url	bool
   copy_keys             []string
   write_returns_object  bool
   create_returns_object bool
@@ -30,7 +32,7 @@ type api_client struct {
 
 
 // Make a new api client for RESTful calls
-func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_timeout int, i_id_attribute string, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) *api_client {
+func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password string, i_headers map[string]string, i_timeout int, i_id_attribute string, i_id_header string, i_id_header_is_url bool, i_copy_keys []string, i_wro bool, i_cro bool, i_debug bool) *api_client {
   if i_debug {
     log.Printf("api_client.go: Constructing debug api_client\n")
   }
@@ -62,6 +64,8 @@ func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password 
     password: i_password,
     headers: i_headers,
     id_attribute: i_id_attribute,
+    id_header: i_id_header,
+    id_header_is_url: i_id_header_is_url,
     copy_keys: i_copy_keys,
     write_returns_object: i_wro,
     create_returns_object: i_cro,
@@ -74,7 +78,7 @@ func NewAPIClient (i_uri string, i_insecure bool, i_username string, i_password 
 /* Helper function that handles sending/receiving and handling
    of HTTP data in and out.
    TODO: Handle redirects */
-func (client *api_client) send_request (method string, path string, data string) (string, error) {
+func (client *api_client) send_request (method string, path string, data string) (http.Header, string, error) {
   full_uri := client.uri + path
   var req *http.Request
   var err error
@@ -98,7 +102,7 @@ func (client *api_client) send_request (method string, path string, data string)
 
   if err != nil {
     log.Fatal(err)
-    return "", err
+    return make(http.Header), "", err
   }
 
   if client.debug {
@@ -138,7 +142,7 @@ func (client *api_client) send_request (method string, path string, data string)
 
     if err != nil {
       //log.Printf("api_client.go: Error detected: %s\n", err)
-      return "", err
+      return make(http.Header), "", err
     }
 
     if client.debug {
@@ -151,23 +155,25 @@ func (client *api_client) send_request (method string, path string, data string)
       }
     }
 
+    headers := resp.Header
+
     bodyBytes, err2 := ioutil.ReadAll(resp.Body)
     resp.Body.Close()
 
-    if err2 != nil { return "", err2 }
+    if err2 != nil { return make(http.Header), "", err2 }
     body := string(bodyBytes)
 
     if resp.StatusCode == 301 || resp.StatusCode == 302 {
       //Redirecting... decrement num_redirects and proceed to the next loop
       //uri = URI.parse(rsp['Location'])
     } else if resp.StatusCode == 404 || resp.StatusCode < 200 || resp.StatusCode >= 303 {
-      return "", errors.New(fmt.Sprintf("Unexpected response code '%d': %s", resp.StatusCode, body))
+      return make(http.Header), "", errors.New(fmt.Sprintf("Unexpected response code '%d': %s %s", resp.StatusCode, headers, body))
     } else {
-      if client.debug { log.Printf("api_client.go: BODY:\n%s\n", body) }
-      return body, nil
+      if client.debug { log.Printf("api_client.go: HEADERS:\n%s\nBODY:\n%s\n", headers, body) }
+      return headers, body, nil
     }
 
   } //End loop through redirect attempts
 
-  return "", errors.New("Error - too many redirects!")
+  return make(http.Header), "", errors.New("Error - too many redirects!")
 }
