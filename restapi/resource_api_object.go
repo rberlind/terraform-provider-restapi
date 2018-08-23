@@ -116,6 +116,9 @@ func resourceRestApiCreate(d *schema.ResourceData, meta interface{}) error {
 
   err = obj.create_object()
   if err == nil {
+    if obj.debug {
+      log.Printf("resource_api_object.go: Created object without error\n")
+    }
     /* Setting terraform ID tells terraform the object was created or it exists */
     d.SetId(obj.id)
     set_resource_state(obj, d)
@@ -142,7 +145,7 @@ func resourceRestApiUpdate(d *schema.ResourceData, meta interface{}) error {
   obj, err := make_api_object(d, meta)
   if err != nil { return err }
 
-  /* If copy_keys is not empty, we have to grab the latest 
+  /* If copy_keys is not empty, we have to grab the latest
      data so we can copy anything needed before the update */
   client := meta.(*api_client)
   if len(client.copy_keys) > 0 {

@@ -48,9 +48,15 @@ func make_api_object(d *schema.ResourceData, m interface{}) (*api_object, error)
    all the k,v pairs into the api_data map so users can
    consume the values elsewhere if they'd like */
 func set_resource_state(obj *api_object, d *schema.ResourceData) {
+  if obj.debug {
+    log.Printf("common.go: set_resource_state called for id '%s'\n", obj.id)
+  }
   api_data := make(map[string]string)
   for k, v := range obj.api_data {
     api_data[k] = fmt.Sprintf("%v", v)
   }
   d.Set("api_data", api_data)
+  if obj.debug {
+    log.Printf("common.go: set_resource_state completed for id '%s'\n", obj.id)
+  }
 }

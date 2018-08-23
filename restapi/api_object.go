@@ -63,10 +63,9 @@ func NewAPIObject (i_client *api_client, i_get_path string, i_post_path string, 
       val, ok := obj.data[obj.api_client.id_attribute]
       if ok {
         obj.id = fmt.Sprintf("%v", val)
-      } else if !obj.api_client.write_returns_object && !obj.api_client.create_returns_object {
-        /* If the id is not set and we cannot obtain it
-	   later, error out to be safe */
-        return nil, errors.New(fmt.Sprintf("Provided data does not have %s attribute for the object's id and the client is not configured to read the object from a POST response. Without an id, the object cannot be managed.", obj.api_client.id_attribute))
+      } else if !obj.api_client.write_returns_object && !obj.api_client.create_returns_object && obj.api_client.id_header == "" {
+        /* If the id is not set and we cannot obtain it later, error out to be safe */
+        return nil, errors.New(fmt.Sprintf("Provided data does not have %s attribute for the object's id and the client is not configured to read the object or its id from a POST response. Without an id, the object cannot be managed.", obj.api_client.id_attribute))
       }
     }
   }
@@ -107,7 +106,7 @@ func (obj *api_object) update_state(state string) error {
     if err != nil { return err }
   }
 
-  /* A usable ID was not passed (in constructor or here), 
+  /* A usable ID was not passed (in constructor or here),
      so we have to guess what it is from the data structure */
   if obj.id == "" {
     val, ok := obj.api_data[obj.api_client.id_attribute]
@@ -149,15 +148,15 @@ func (obj *api_object) create_object() error {
      protect here also. If no id is set, and the API does not respond
      with the id of whatever gets created, we have no way to know what
      the object's id will be. Abandon this attempt */
-  if obj.id == "" && !obj.api_client.write_returns_object && !obj.api_client.create_returns_object {
-    return errors.New("ERROR: Provided object does not have an id set and the client is not configured to read the object from a POST or PUT response. Without an id, the object cannot be managed.")
+  if obj.id == "" && !obj.api_client.write_returns_object && !obj.api_client.create_returns_object && obj.api_client.id_header == "" {
+    return errors.New("ERROR: Provided object does not have an id set and the client is not configured to read the object after a POST or PUT response, possibly after retrieving the ID from a header of the POST response. Without an id, the object cannot be managed.")
   }
 
   b, _ := json.Marshal(obj.data)
   res_headers, res_body, err := obj.api_client.send_request("POST", strings.Replace(obj.post_path, "{id}", obj.id, -1), string(b))
   if err != nil { return err }
 
-  // Try to get ID from id_header if it was specified. 
+  // Try to get ID from id_header if it was specified.
   var id_header string
   if obj.api_client.id_header != "" {
     for name, headers := range res_headers {
@@ -169,12 +168,14 @@ func (obj *api_object) create_object() error {
             segments := strings.Split(h, "/")
             if len(segments) > 0 {
               id_header = segments[len(segments)-1]
+              log.Printf("api_object.go: found ID '%s' in URL in header '%s'\n", id_header, obj.api_client.id_header)
             } else {
               id_header = ""
               log.Printf("api_object.go: id_header '%s' was empty or not a URL\n", obj.api_client.id_header)
             }
           } else {
-            /* use entire header */
+            // use entire header
+            log.Printf("api_object.go: found ID '%s' in header '%s' using entire header\n", id_header, obj.api_client.id_header)
             id_header = h
           }
         }
@@ -211,6 +212,8 @@ func (obj *api_object) create_object() error {
 func (obj *api_object) read_object() error {
   if obj.id == "" {
     return errors.New("Cannot read an object unless the ID has been set.")
+  } else {
+    log.Printf("api_object.go: Invoking read_object() with existing ID:\n")
   }
 
   res_headers, res_body, err := obj.api_client.send_request("GET", strings.Replace(obj.get_path, "{id}", obj.id, -1), "")
