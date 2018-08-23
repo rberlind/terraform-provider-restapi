@@ -134,7 +134,7 @@ func (client *api_client) send_request (method string, path string, data string)
     if req.Body != nil {
       body = string(data)
     }
-    log.Printf("%s\n", body)
+    log.Printf("api_client.go: %s\n", body)
   }
 
   for num_redirects := client.redirects; num_redirects >= 0; num_redirects-- {

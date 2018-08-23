@@ -68,7 +68,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   )
 
   if err != nil { return err }
-  log.Printf("resource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
+  log.Printf("datasource_api_object.go: Data routine called. Object built:\n%s\n", obj.toString())
 
   search_key   := d.Get("search_key").(string)
   search_val   := d.Get("search_value").(string)
@@ -84,10 +84,10 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   if err != nil { return err }
 
   if obj.debug {
-    log.Printf("api_object.go: Response headers:\n")
+    log.Printf("datasource_api_object.go: Response headers:\n")
     for name, headers := range res_headers {
       for _, h := range headers {
-       log.Printf("api_object.go:  %v: %v", name, h)
+       log.Printf("datasource_api_object.go:  %v: %v", name, h)
       }
     }
   }
@@ -151,7 +151,7 @@ func dataSourceRestApiRead(d *schema.ResourceData, meta interface{}) error {
   err = obj.read_object()
   if err == nil {
     /* Setting terraform ID tells terraform the object was created or it exists */
-    log.Printf("resource_api_object.go: Data resource. Returned id is '%s'\n", obj.id);
+    log.Printf("datasource_api_object.go: Data resource. Returned id is '%s'\n", obj.id);
     d.SetId(obj.id)
     set_resource_state(obj, d)
   }

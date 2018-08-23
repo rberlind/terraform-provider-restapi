@@ -220,7 +220,7 @@ func (obj *api_object) read_object() error {
     log.Printf("api_object.go: Response headers:\n")
     for name, headers := range res_headers {
       for _, h := range headers {
-       log.Printf("api_client.go:   %v: %v", name, h)
+       log.Printf("api_object.go:   %v: %v", name, h)
       }
     }
   }
@@ -242,7 +242,7 @@ func (obj *api_object) update_object() error {
     log.Printf("api_object.go: Response headers:\n")
     for name, headers := range res_headers {
       for _, h := range headers {
-       log.Printf("api_client.go:   %v: %v", name, h)
+       log.Printf("api_object.go:   %v: %v", name, h)
       }
     }
   }
@@ -259,7 +259,7 @@ func (obj *api_object) update_object() error {
 
 func (obj *api_object) delete_object() error {
   if obj.id == "" {
-    log.Printf("WARNING: Attempting to delete an object that has no id set. Assuming this is OK.\n")
+    log.Printf("api_object.go: WARNING: Attempting to delete an object that has no id set. Assuming this is OK.\n")
     return nil
   }
 
