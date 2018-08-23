@@ -164,7 +164,8 @@ func (obj *api_object) create_object() error {
       if name == obj.api_client.id_header {
         for _, h := range headers {
           if obj.api_client.id_header_is_url {
-            /* parse ID from last segment of URL */
+            // parse ID from last segment of URL
+            h = strings.TrimSuffix(h, "/")
             segments := strings.Split(h, "/")
             if len(segments) > 0 {
               id_header = segments[len(segments)-1]
