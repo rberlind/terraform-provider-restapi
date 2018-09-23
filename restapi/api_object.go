@@ -102,6 +102,10 @@ func (obj *api_object) update_state(state string) error {
   */
   var err error
   if state != "" {
+    // Trim initial "[" and final "]" in case API returns
+    // slice/list with single map
+    // If single map returned as expected, this will do no harm.
+    state = strings.TrimSuffix(strings.TrimPrefix(state, "["), "]")
     err = json.Unmarshal([]byte(state), &obj.api_data)
     if err != nil { return err }
   }
@@ -195,6 +199,7 @@ func (obj *api_object) create_object() error {
       log.Printf("api_object.go: Parsing response from POST to update internal structures (write_returns_object=%t, create_returns_object=%t)...\n",
         obj.api_client.write_returns_object, obj.api_client.create_returns_object)
     }
+
     err = obj.update_state(res_body)
     /* Yet another failsafe. In case something terrible went wrong internally,
        bail out so the user at least knows that the ID did not get set. */
